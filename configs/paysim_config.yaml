@@ -1,0 +1,90 @@
+# ==============================================================================
+# PaySim Dataset Configuration & Pipeline Parameters
+# ==============================================================================
+dataset_name: "paysim"
+adapter_type: "paysim"
+raw_csv_path: "archive/paysim dataset.csv"
+
+# Column Schema Definition
+schema:
+  target_col: "isFraud"
+  naive_flag_col: "isFlaggedFraud"
+  type_col: "type"
+  step_col: "step"
+  amount_col: "amount"
+  orig_id_col: "nameOrig"
+  dest_id_col: "nameDest"
+  oldbalance_orig_col: "oldbalanceOrg"
+  newbalance_orig_col: "newbalanceOrig"
+  oldbalance_dest_col: "oldbalanceDest"
+  newbalance_dest_col: "newbalanceDest"
+  numeric_cols:
+    - "step"
+    - "amount"
+    - "oldbalanceOrg"
+    - "newbalanceOrig"
+    - "oldbalanceDest"
+    - "newbalanceDest"
+  categorical_cols:
+    - "type"
+  drop_cols:
+    - "nameOrig"
+    - "nameDest"
+    - "isFlaggedFraud"
+
+# Domain-Specific Remediation & Filtering Rules (PaySim Artifacts)
+remediation:
+  valid_fraud_types:
+    - "TRANSFER"
+    - "CASH_OUT"
+  fix_ledger_bug: true
+  # To keep execution fast and memory-efficient while retaining 100% of fraud cases,
+  # we retain all positive (isFraud=1) rows and sample negative TRANSFER/CASH_OUT rows.
+  # Set sample_negative_count to null to use all ~2.77M TRANSFER/CASH_OUT rows.
+  sample_negative_count: 300000
+  random_seed: 42
+
+# Train / Test Split & Cost-Sensitive Modeling Configuration
+modeling:
+  test_size: 0.25
+  random_seed: 42
+  # Asymmetric Cost Matrix (cost of missing a fraud vs false alarm)
+  cost_false_negative: 500.0
+  cost_false_positive: 10.0
+
+  xgboost_params:
+    n_estimators: 250
+    max_depth: 6
+    learning_rate: 0.08
+    subsample: 0.85
+    colsample_bytree: 0.85
+    eval_metric: "aucpr"
+    random_state: 42
+    n_jobs: -1
+
+  secondary_model_type: "lightgbm"
+  lightgbm_params:
+    n_estimators: 250
+    max_depth: 6
+    num_leaves: 31
+    learning_rate: 0.08
+    subsample: 0.85
+    colsample_bytree: 0.85
+    random_state: 42
+    n_jobs: -1
+    verbose: -1
+
+# SHAP Explainability Configuration
+explainability:
+  num_background_samples: 200
+  num_test_samples_global: 300
+  num_case_studies: 5
+  random_seed: 42
+
+# Output Directories
+paths:
+  audit_dir: "data/01_audit"
+  modeling_dir: "data/02_modeling"
+  models_dir: "models"
+  reports_dir: "reports"
+  figures_dir: "reports/figures"
