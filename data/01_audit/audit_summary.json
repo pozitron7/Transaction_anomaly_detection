@@ -1,0 +1,166 @@
+{
+  "dataset_name": "paysim",
+  "validity_checks": {
+    "is_valid_schema": true,
+    "total_null_values": 0,
+    "null_counts_by_column": {
+      "step": 0,
+      "type": 0,
+      "amount": 0,
+      "nameOrig": 0,
+      "oldbalanceOrg": 0,
+      "newbalanceOrig": 0,
+      "nameDest": 0,
+      "oldbalanceDest": 0,
+      "newbalanceDest": 0,
+      "isFraud": 0,
+      "isFlaggedFraud": 0
+    },
+    "total_negative_values": 0,
+    "negative_counts_by_column": {
+      "step": 0,
+      "amount": 0,
+      "oldbalanceOrg": 0,
+      "newbalanceOrig": 0,
+      "oldbalanceDest": 0,
+      "newbalanceDest": 0
+    },
+    "total_infinite_values": 0,
+    "exact_duplicate_rows": 0
+  },
+  "domain_audit": {
+    "total_rows": 6362620,
+    "total_fraud": 8213,
+    "global_fraud_rate_pct": 0.1291,
+    "step_min": 1,
+    "step_max": 743,
+    "type_breakdown": {
+      "CASH_IN": {
+        "total_transactions": 1399284,
+        "share_of_dataset_pct": 21.992,
+        "fraud_transactions": 0,
+        "fraud_rate_pct": 0.0,
+        "mean_amount": 168920.24
+      },
+      "CASH_OUT": {
+        "total_transactions": 2237500,
+        "share_of_dataset_pct": 35.166,
+        "fraud_transactions": 4116,
+        "fraud_rate_pct": 0.184,
+        "mean_amount": 176273.96
+      },
+      "DEBIT": {
+        "total_transactions": 41432,
+        "share_of_dataset_pct": 0.651,
+        "fraud_transactions": 0,
+        "fraud_rate_pct": 0.0,
+        "mean_amount": 5483.67
+      },
+      "PAYMENT": {
+        "total_transactions": 2151495,
+        "share_of_dataset_pct": 33.815,
+        "fraud_transactions": 0,
+        "fraud_rate_pct": 0.0,
+        "mean_amount": 13057.6
+      },
+      "TRANSFER": {
+        "total_transactions": 532909,
+        "share_of_dataset_pct": 8.376,
+        "fraud_transactions": 4097,
+        "fraud_rate_pct": 0.7688,
+        "mean_amount": 910647.01
+      }
+    },
+    "naive_isFlaggedFraud_audit": {
+      "total_flagged": 16,
+      "true_positives": 16,
+      "false_positives": 0,
+      "false_negatives": 8197,
+      "recall_pct": 0.1948
+    },
+    "entity_prefix_audit": {
+      "orig_merchant_count": 0,
+      "dest_merchant_count": 2151495,
+      "dest_merchants_in_transfer_or_cashout": 0
+    },
+    "ledger_bug_and_leakage_audit": {
+      "transfer_cashout_rows": 2770409,
+      "dest_balance_unchanged_in_fraud_pct": 49.56,
+      "dest_balance_unchanged_in_legit_pct": 0.06,
+      "dest_zero_before_and_after_in_fraud_pct": 49.56,
+      "dest_zero_before_and_after_in_legit_pct": 0.06,
+      "exact_100pct_account_depletion_in_fraud_pct": 97.63,
+      "exact_100pct_account_depletion_in_legit_pct": 0.0,
+      "corr_abs_error_orig_with_fraud": -0.0171,
+      "corr_abs_error_dest_with_fraud": 0.0643,
+      "corr_dest_unchanged_with_fraud": 0.5914,
+      "mean_abs_error_dest_fraud": 745138.59,
+      "mean_abs_error_dest_legit": 44302.66
+    }
+  },
+  "outlier_analysis": {
+    "analyzed_subset": "TRANSFER and CASH_OUT",
+    "analyzed_rows": 2770409,
+    "univariate_outliers": {
+      "amount": {
+        "median": 171260.93,
+        "q25": 82973.54,
+        "q75": 306791.18,
+        "q99": 2650035.52,
+        "max": 92445516.64,
+        "iqr": 223817.64,
+        "iqr_upper_fence": 642517.64,
+        "iqr_outlier_count": 223100,
+        "iqr_outlier_pct": 8.05,
+        "extreme_3x_iqr_outlier_count": 134343,
+        "mod_zscore_gt_3_5_count": 199587,
+        "fraud_captured_in_iqr_outliers": 3443,
+        "pct_of_all_fraud_is_iqr_outlier": 41.92
+      },
+      "oldbalanceOrg": {
+        "median": 303.96,
+        "q25": 0.0,
+        "q75": 30997.0,
+        "q99": 594577.22,
+        "max": 59585040.37,
+        "iqr": 30997.0,
+        "iqr_upper_fence": 77492.5,
+        "iqr_outlier_count": 395573,
+        "iqr_outlier_pct": 14.28,
+        "extreme_3x_iqr_outlier_count": 258639,
+        "mod_zscore_gt_3_5_count": 1274833,
+        "fraud_captured_in_iqr_outliers": 6753,
+        "pct_of_all_fraud_is_iqr_outlier": 82.22
+      },
+      "oldbalanceDest": {
+        "median": 555709.97,
+        "q25": 128073.45,
+        "q75": 1735900.15,
+        "q99": 15231081.91,
+        "max": 356015889.35,
+        "iqr": 1607826.7,
+        "iqr_upper_fence": 4147640.2,
+        "iqr_outlier_count": 286491,
+        "iqr_outlier_pct": 10.34,
+        "extreme_3x_iqr_outlier_count": 153140,
+        "mod_zscore_gt_3_5_count": 364618,
+        "fraud_captured_in_iqr_outliers": 254,
+        "pct_of_all_fraud_is_iqr_outlier": 3.09
+      }
+    },
+    "multivariate_isolation_forest": {
+      "evaluated_sample_size": 108213,
+      "contamination_rate": 0.05,
+      "total_outliers_flagged": 5411,
+      "fraud_flagged_as_multivariate_outlier": 2392,
+      "pct_of_fraud_flagged_as_multivariate_outlier": 29.12,
+      "mean_anomaly_score_fraud": 0.5532,
+      "mean_anomaly_score_legit": 0.4635
+    }
+  },
+  "Generated_Plots": {
+    "leakage_and_types_plot": "reports\\figures\\stage1_leakage_and_types.png",
+    "outliers_and_seasonality_plot": "reports\\figures\\stage1_outliers_and_seasonality.png"
+  },
+  "execution_time_sec": 76.95
+}
