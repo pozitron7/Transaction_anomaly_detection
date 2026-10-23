@@ -1,0 +1,60 @@
+{
+  "dataset_name": "paysim",
+  "fix_ledger_bug_applied": true,
+  "valid_fraud_types_retained": [
+    "TRANSFER",
+    "CASH_OUT"
+  ],
+  "total_modeling_rows": 308213,
+  "train_rows": 231159,
+  "test_rows": 77054,
+  "train_fraud_count": 6160,
+  "test_fraud_count": 2053,
+  "train_fraud_rate_pct": 2.6648,
+  "test_fraud_rate_pct": 2.6644,
+  "feature_names": [
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+    "account_depletion_ratio",
+    "dest_surge_ratio",
+    "is_zero_oldbalance_orig",
+    "is_zero_oldbalance_dest",
+    "hour_of_day",
+    "day_of_week",
+    "is_transfer"
+  ],
+  "feature_descriptions": {
+    "amount": "Transaction amount in local currency",
+    "oldbalanceOrg": "Origin account initial balance before transaction",
+    "newbalanceOrig": "Origin account balance after transaction (recalculated ledger)",
+    "oldbalanceDest": "Destination account initial balance before transaction",
+    "newbalanceDest": "Destination account balance after transaction (recalculated ledger)",
+    "account_depletion_ratio": "Ratio of transaction amount to origin balance (amount / oldbalanceOrg, capped at 5.0)",
+    "dest_surge_ratio": "Ratio of transaction amount to post-transaction destination balance",
+    "is_zero_oldbalance_orig": "Indicator (1/0) whether origin account started with zero balance",
+    "is_zero_oldbalance_dest": "Indicator (1/0) whether destination account started with zero balance",
+    "hour_of_day": "Micro-seasonality: Hour of day (step mod 24)",
+    "day_of_week": "Micro-seasonality: Day of week (floor(step / 24) mod 7)",
+    "is_transfer": "Transaction type indicator (1 = TRANSFER, 0 = CASH_OUT)"
+  },
+  "leaked_feature_names": [
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+    "account_depletion_ratio",
+    "dest_surge_ratio",
+    "is_zero_oldbalance_orig",
+    "is_zero_oldbalance_dest",
+    "hour_of_day",
+    "day_of_week",
+    "is_transfer",
+    "raw_error_orig",
+    "raw_error_dest"
+  ],
+  "execution_time_sec": 122.92
+}
