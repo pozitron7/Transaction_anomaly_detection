@@ -1,0 +1,168 @@
+{
+  "class_imbalance": {
+    "train_positives": 6160,
+    "train_negatives": 224999,
+    "scale_pos_weight": 36.526
+  },
+  "xgboost_remediated": {
+    "model_name": "XGBoost (Remediated Ledger)",
+    "metrics": {
+      "pr_auc": 0.99944,
+      "roc_auc": 0.99997,
+      "default_threshold_0_5": {
+        "threshold": 0.5,
+        "precision": 0.9951,
+        "recall": 0.9981,
+        "f1": 0.9966,
+        "tp": 2049,
+        "fp": 10,
+        "fn": 4,
+        "tn": 74991,
+        "asymmetric_cost": 2100.0
+      },
+      "optimal_f1_threshold": {
+        "threshold": 0.9853,
+        "precision": 0.9976,
+        "recall": 0.9981,
+        "f1": 0.9978,
+        "tp": 2049,
+        "fp": 5,
+        "fn": 4,
+        "tn": 74996,
+        "asymmetric_cost": 2050.0
+      },
+      "optimal_cost_threshold": {
+        "threshold": 0.1931,
+        "cost_fn_weight": 500.0,
+        "cost_fp_weight": 10.0,
+        "min_asymmetric_cost": 1690.0,
+        "precision": 0.9908,
+        "recall": 0.9985,
+        "f1": 0.9947,
+        "tp": 2050,
+        "fp": 19,
+        "fn": 3,
+        "tn": 74982
+      }
+    },
+    "feature_gain_importance": {
+      "amount": 0.0535,
+      "oldbalanceOrg": 0.3882,
+      "newbalanceOrig": 0.0947,
+      "oldbalanceDest": 0.0033,
+      "newbalanceDest": 0.0439,
+      "account_depletion_ratio": 0.3428,
+      "dest_surge_ratio": 0.0078,
+      "is_zero_oldbalance_orig": 0.051,
+      "is_zero_oldbalance_dest": 0.0016,
+      "hour_of_day": 0.0033,
+      "day_of_week": 0.0023,
+      "is_transfer": 0.0076
+    }
+  },
+  "secondary_model_remediated": {
+    "model_name": "LightGBM (Remediated Ledger)",
+    "metrics": {
+      "pr_auc": 0.99966,
+      "roc_auc": 0.99997,
+      "default_threshold_0_5": {
+        "threshold": 0.5,
+        "precision": 0.9981,
+        "recall": 0.999,
+        "f1": 0.9985,
+        "tp": 2051,
+        "fp": 4,
+        "fn": 2,
+        "tn": 74997,
+        "asymmetric_cost": 1040.0
+      },
+      "optimal_f1_threshold": {
+        "threshold": 0.9997,
+        "precision": 1.0,
+        "recall": 0.999,
+        "f1": 0.9995,
+        "tp": 2051,
+        "fp": 0,
+        "fn": 2,
+        "tn": 75001,
+        "asymmetric_cost": 1000.0
+      },
+      "optimal_cost_threshold": {
+        "threshold": 0.9504,
+        "cost_fn_weight": 500.0,
+        "cost_fp_weight": 10.0,
+        "min_asymmetric_cost": 1000.0,
+        "precision": 1.0,
+        "recall": 0.999,
+        "f1": 0.9995,
+        "tp": 2051,
+        "fp": 0,
+        "fn": 2,
+        "tn": 75001
+      }
+    }
+  },
+  "ablation_xgboost_leaked_ledger": {
+    "model_name": "XGBoost (Unfixed Leaked Ledger)",
+    "metrics": {
+      "pr_auc": 0.9996,
+      "roc_auc": 0.99998,
+      "default_threshold_0_5": {
+        "threshold": 0.5,
+        "precision": 0.9981,
+        "recall": 0.999,
+        "f1": 0.9985,
+        "tp": 2051,
+        "fp": 4,
+        "fn": 2,
+        "tn": 74997,
+        "asymmetric_cost": 1040.0
+      },
+      "optimal_f1_threshold": {
+        "threshold": 0.9963,
+        "precision": 1.0,
+        "recall": 0.999,
+        "f1": 0.9995,
+        "tp": 2051,
+        "fp": 0,
+        "fn": 2,
+        "tn": 75001,
+        "asymmetric_cost": 1000.0
+      },
+      "optimal_cost_threshold": {
+        "threshold": 0.7029,
+        "cost_fn_weight": 500.0,
+        "cost_fp_weight": 10.0,
+        "min_asymmetric_cost": 1000.0,
+        "precision": 1.0,
+        "recall": 0.999,
+        "f1": 0.9995,
+        "tp": 2051,
+        "fp": 0,
+        "fn": 2,
+        "tn": 75001
+      }
+    },
+    "feature_gain_importance": {
+      "amount": 0.0198,
+      "oldbalanceOrg": 0.134,
+      "newbalanceOrig": 0.1536,
+      "oldbalanceDest": 0.0028,
+      "newbalanceDest": 0.0149,
+      "account_depletion_ratio": 0.1186,
+      "dest_surge_ratio": 0.0039,
+      "is_zero_oldbalance_orig": 0.0153,
+      "is_zero_oldbalance_dest": 0.0061,
+      "hour_of_day": 0.0019,
+      "day_of_week": 0.0026,
+      "is_transfer": 0.0018,
+      "raw_error_orig": 0.5115,
+      "raw_error_dest": 0.0134
+    }
+  },
+  "plots": {
+    "pr_curves_and_cost_plot": "reports\\figures\\stage3_pr_curves_and_cost.png",
+    "leakage_ablation_plot": "reports\\figures\\stage3_leakage_ablation_importance.png"
+  },
+  "execution_time_sec": 32.56
+}
