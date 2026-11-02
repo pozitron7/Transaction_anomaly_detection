@@ -1,0 +1,289 @@
+{
+  "algorithm": "Official `shap.TreeExplainer` Library on LGBMClassifier",
+  "base_value_phi0_log_odds": -14.35099,
+  "global_sample_size": 300,
+  "global_mean_abs_shap": {
+    "account_depletion_ratio": 9.0548,
+    "newbalanceOrig": 4.09484,
+    "oldbalanceOrg": 1.67829,
+    "dest_surge_ratio": 0.80586,
+    "hour_of_day": 0.73817,
+    "amount": 0.71954,
+    "day_of_week": 0.56501,
+    "oldbalanceDest": 0.49862,
+    "newbalanceDest": 0.2086,
+    "is_transfer": 0.17077,
+    "is_zero_oldbalance_orig": 0.05929,
+    "is_zero_oldbalance_dest": 0.03159
+  },
+  "cross_model_shap_agreement": {
+    "spearman_rank_correlation": 0.7063,
+    "pearson_linear_correlation": 0.7782
+  },
+  "case_studies": [
+    {
+      "test_row_index": 47,
+      "true_label": 1,
+      "predicted_probability": 1.0,
+      "predicted_log_odds": 15.06823,
+      "base_value_phi0": -14.35099,
+      "feature_values": {
+        "amount": 549159.68,
+        "oldbalanceOrg": 549159.68,
+        "newbalanceOrig": 0.0,
+        "oldbalanceDest": 5479220.09,
+        "newbalanceDest": 6028379.77,
+        "account_depletion_ratio": 1.0,
+        "dest_surge_ratio": 0.0911,
+        "is_zero_oldbalance_orig": 0.0,
+        "is_zero_oldbalance_dest": 0.0,
+        "hour_of_day": 6.0,
+        "day_of_week": 0.0,
+        "is_transfer": 0.0
+      },
+      "shap_contributions": {
+        "amount": 0.28378,
+        "oldbalanceOrg": 3.09186,
+        "newbalanceOrig": 8.08494,
+        "oldbalanceDest": -0.48098,
+        "newbalanceDest": 0.05202,
+        "account_depletion_ratio": 17.17389,
+        "dest_surge_ratio": -0.33645,
+        "is_zero_oldbalance_orig": 0.08737,
+        "is_zero_oldbalance_dest": -0.01888,
+        "hour_of_day": 1.34856,
+        "day_of_week": 0.03492,
+        "is_transfer": 0.0982
+      },
+      "top_positive_fraud_drivers": [
+        {
+          "feature": "account_depletion_ratio",
+          "shap_log_odds": 17.17389,
+          "feature_value": 1.0
+        },
+        {
+          "feature": "newbalanceOrig",
+          "shap_log_odds": 8.08494,
+          "feature_value": 0.0
+        },
+        {
+          "feature": "oldbalanceOrg",
+          "shap_log_odds": 3.09186,
+          "feature_value": 549159.68
+        }
+      ]
+    },
+    {
+      "test_row_index": 64,
+      "true_label": 1,
+      "predicted_probability": 1.0,
+      "predicted_log_odds": 15.75201,
+      "base_value_phi0": -14.35099,
+      "feature_values": {
+        "amount": 59829.03,
+        "oldbalanceOrg": 59829.03,
+        "newbalanceOrig": 0.0,
+        "oldbalanceDest": 0.0,
+        "newbalanceDest": 59829.03,
+        "account_depletion_ratio": 1.0,
+        "dest_surge_ratio": 1.0,
+        "is_zero_oldbalance_orig": 0.0,
+        "is_zero_oldbalance_dest": 1.0,
+        "hour_of_day": 7.0,
+        "day_of_week": 0.0,
+        "is_transfer": 0.0
+      },
+      "shap_contributions": {
+        "amount": 0.93911,
+        "oldbalanceOrg": 1.1886,
+        "newbalanceOrig": 7.92356,
+        "oldbalanceDest": 0.5561,
+        "newbalanceDest": -0.37068,
+        "account_depletion_ratio": 16.02355,
+        "dest_surge_ratio": 1.32864,
+        "is_zero_oldbalance_orig": 0.0448,
+        "is_zero_oldbalance_dest": 0.07396,
+        "hour_of_day": 2.32467,
+        "day_of_week": 0.0404,
+        "is_transfer": 0.0303
+      },
+      "top_positive_fraud_drivers": [
+        {
+          "feature": "account_depletion_ratio",
+          "shap_log_odds": 16.02355,
+          "feature_value": 1.0
+        },
+        {
+          "feature": "newbalanceOrig",
+          "shap_log_odds": 7.92356,
+          "feature_value": 0.0
+        },
+        {
+          "feature": "hour_of_day",
+          "shap_log_odds": 2.32467,
+          "feature_value": 7.0
+        }
+      ]
+    },
+    {
+      "test_row_index": 95,
+      "true_label": 1,
+      "predicted_probability": 1.0,
+      "predicted_log_odds": 14.78457,
+      "base_value_phi0": -14.35099,
+      "feature_values": {
+        "amount": 10000000.0,
+        "oldbalanceOrg": 10000000.0,
+        "newbalanceOrig": 0.0,
+        "oldbalanceDest": 1058449.45,
+        "newbalanceDest": 11058449.45,
+        "account_depletion_ratio": 1.0,
+        "dest_surge_ratio": 0.9043,
+        "is_zero_oldbalance_orig": 0.0,
+        "is_zero_oldbalance_dest": 0.0,
+        "hour_of_day": 14.0,
+        "day_of_week": 1.0,
+        "is_transfer": 0.0
+      },
+      "shap_contributions": {
+        "amount": 2.60053,
+        "oldbalanceOrg": 3.43024,
+        "newbalanceOrig": 4.27725,
+        "oldbalanceDest": 0.20796,
+        "newbalanceDest": 0.19548,
+        "account_depletion_ratio": 16.66431,
+        "dest_surge_ratio": 1.22976,
+        "is_zero_oldbalance_orig": 0.05278,
+        "is_zero_oldbalance_dest": -0.01545,
+        "hour_of_day": 0.07491,
+        "day_of_week": 0.31524,
+        "is_transfer": 0.10257
+      },
+      "top_positive_fraud_drivers": [
+        {
+          "feature": "account_depletion_ratio",
+          "shap_log_odds": 16.66431,
+          "feature_value": 1.0
+        },
+        {
+          "feature": "newbalanceOrig",
+          "shap_log_odds": 4.27725,
+          "feature_value": 0.0
+        },
+        {
+          "feature": "oldbalanceOrg",
+          "shap_log_odds": 3.43024,
+          "feature_value": 10000000.0
+        }
+      ]
+    },
+    {
+      "test_row_index": 121,
+      "true_label": 1,
+      "predicted_probability": 1.0,
+      "predicted_log_odds": 15.42863,
+      "base_value_phi0": -14.35099,
+      "feature_values": {
+        "amount": 98050.29,
+        "oldbalanceOrg": 98050.29,
+        "newbalanceOrig": 0.0,
+        "oldbalanceDest": 0.0,
+        "newbalanceDest": 98050.29,
+        "account_depletion_ratio": 1.0,
+        "dest_surge_ratio": 1.0,
+        "is_zero_oldbalance_orig": 0.0,
+        "is_zero_oldbalance_dest": 1.0,
+        "hour_of_day": 23.0,
+        "day_of_week": 5.0,
+        "is_transfer": 0.0
+      },
+      "shap_contributions": {
+        "amount": 1.13197,
+        "oldbalanceOrg": 1.95446,
+        "newbalanceOrig": 8.36957,
+        "oldbalanceDest": 0.58175,
+        "newbalanceDest": -0.04533,
+        "account_depletion_ratio": 16.67744,
+        "dest_surge_ratio": 0.48857,
+        "is_zero_oldbalance_orig": 0.06981,
+        "is_zero_oldbalance_dest": 0.10285,
+        "hour_of_day": 0.64264,
+        "day_of_week": -0.23369,
+        "is_transfer": 0.03959
+      },
+      "top_positive_fraud_drivers": [
+        {
+          "feature": "account_depletion_ratio",
+          "shap_log_odds": 16.67744,
+          "feature_value": 1.0
+        },
+        {
+          "feature": "newbalanceOrig",
+          "shap_log_odds": 8.36957,
+          "feature_value": 0.0
+        },
+        {
+          "feature": "oldbalanceOrg",
+          "shap_log_odds": 1.95446,
+          "feature_value": 98050.29
+        }
+      ]
+    },
+    {
+      "test_row_index": 126,
+      "true_label": 1,
+      "predicted_probability": 1.0,
+      "predicted_log_odds": 14.80733,
+      "base_value_phi0": -14.35099,
+      "feature_values": {
+        "amount": 5614246.07,
+        "oldbalanceOrg": 5614246.07,
+        "newbalanceOrig": 0.0,
+        "oldbalanceDest": 0.0,
+        "newbalanceDest": 5614246.07,
+        "account_depletion_ratio": 1.0,
+        "dest_surge_ratio": 1.0,
+        "is_zero_oldbalance_orig": 0.0,
+        "is_zero_oldbalance_dest": 1.0,
+        "hour_of_day": 15.0,
+        "day_of_week": 5.0,
+        "is_transfer": 0.0
+      },
+      "shap_contributions": {
+        "amount": 2.0255,
+        "oldbalanceOrg": 3.3954,
+        "newbalanceOrig": 4.94087,
+        "oldbalanceDest": 0.69703,
+        "newbalanceDest": 0.25733,
+        "account_depletion_ratio": 16.37155,
+        "dest_surge_ratio": 1.77006,
+        "is_zero_oldbalance_orig": 0.05364,
+        "is_zero_oldbalance_dest": 0.02717,
+        "hour_of_day": -0.07748,
+        "day_of_week": -0.39907,
+        "is_transfer": 0.09633
+      },
+      "top_positive_fraud_drivers": [
+        {
+          "feature": "account_depletion_ratio",
+          "shap_log_odds": 16.37155,
+          "feature_value": 1.0
+        },
+        {
+          "feature": "newbalanceOrig",
+          "shap_log_odds": 4.94087,
+          "feature_value": 0.0
+        },
+        {
+          "feature": "oldbalanceOrg",
+          "shap_log_odds": 3.3954,
+          "feature_value": 5614246.07
+        }
+      ]
+    }
+  ],
+  "plots": {
+    "library_shap_and_comparison_plot": "reports\\figures\\stage4_library_shap_and_comparison.png"
+  },
+  "execution_time_sec": 2.86
+}
