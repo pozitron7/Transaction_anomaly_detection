@@ -4,6 +4,7 @@ archive/
 
 # Intermediate data artifacts (Parquet splits)
 data/02_modeling/*.parquet
+models/*.parquet
 
 # Python cache & virtual environments
 __pycache__/
