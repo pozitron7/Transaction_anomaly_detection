@@ -198,7 +198,11 @@ class CustomXGBoostTreeSHAPExplainer:
     def __init__(self, xgb_model: xgb.XGBClassifier, feature_names: List[str]) -> None:
         self.xgb_model = xgb_model
         self.booster = xgb_model.get_booster()
-        self.feature_names = list(feature_names)
+        # If model has saved feature names, preserve booster's original training order
+        if self.booster.feature_names is not None:
+            self.feature_names = list(self.booster.feature_names)
+        else:
+            self.feature_names = list(feature_names)
         self.num_features = len(self.feature_names)
         self.feature_to_idx = {name: idx for idx, name in enumerate(self.feature_names)}
 
