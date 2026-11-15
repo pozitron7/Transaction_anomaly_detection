@@ -122,3 +122,42 @@ def test_stage5_reports_exist(config):
     assert html_report.exists()
     assert md_report.stat().st_size > 5000
     assert html_report.stat().st_size > 50000  # Embedded Base64 images
+
+
+def test_spark_data_handling_unit(config):
+    from src.spark_utils import get_spark_session
+    from src.stage1_audit_outliers import compute_validity_checks
+
+    spark = get_spark_session(config)
+    try:
+        adapter = get_dataset_adapter(config)
+        rows = [
+            (1, "TRANSFER", 100.0, "C1", 100.0, 0.0, "C2", 0.0, 0.0, 1, 0),
+            (2, "CASH_OUT", 50.0, "C3", 200.0, 150.0, "C4", 10.0, 60.0, 0, 0),
+            (3, "PAYMENT", 25.0, "C5", 100.0, 75.0, "M1", 0.0, 0.0, 0, 0),
+        ]
+        df = spark.createDataFrame(rows, schema=adapter.PAYSIM_SCHEMA)
+
+        validity = compute_validity_checks(df, config["schema"]["numeric_cols"])
+        assert validity["is_valid_schema"] is True
+        assert validity["total_null_values"] == 0
+        assert validity["exact_duplicate_rows"] == 0
+
+        domain = adapter.compute_domain_audit_metrics(df)
+        assert domain["total_rows"] == 3
+        assert domain["total_fraud"] == 1
+        assert domain["ledger_bug_and_leakage_audit"]["dest_balance_unchanged_in_fraud_pct"] == 100.0
+
+        filtered = adapter.filter_and_subsample(df)
+        assert filtered.count() == 2  # PAYMENT excluded
+
+        clean_df, feat_cols, _ = adapter.prepare_modeling_dataframe(filtered, fix_leakage=True)
+        assert len(feat_cols) == 12
+        fraud_row = clean_df.filter("isFraud == 1").collect()[0]
+        assert fraud_row["newbalanceDest"] == 100.0  # Ledger bug fixed (0 + 100)
+
+        leaked_df, leaked_cols, _ = adapter.prepare_modeling_dataframe(filtered, fix_leakage=False)
+        assert len(leaked_cols) == 14
+        assert "raw_error_dest" in leaked_cols
+    finally:
+        spark.stop()

@@ -5,6 +5,14 @@ dataset_name: "generic_fraud_dataset"
 adapter_type: "generic"
 raw_csv_path: "archive/custom_dataset.csv"
 
+# Apache Spark Execution Settings
+spark:
+  app_name: "GenericFraudDetection"
+  master: "local[*]"
+  driver_memory: "4g"
+  shuffle_partitions: 32
+  adaptive_enabled: true
+
 schema:
   target_col: "is_fraud"
   numeric_cols:

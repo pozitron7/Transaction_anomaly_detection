@@ -1,17 +1,18 @@
 {
   "dataset_name": "paysim",
+  "engine": "Apache Spark 4.0.5",
   "fix_ledger_bug_applied": true,
   "valid_fraud_types_retained": [
     "TRANSFER",
     "CASH_OUT"
   ],
   "total_modeling_rows": 308213,
-  "train_rows": 231159,
-  "test_rows": 77054,
-  "train_fraud_count": 6160,
-  "test_fraud_count": 2053,
-  "train_fraud_rate_pct": 2.6648,
-  "test_fraud_rate_pct": 2.6644,
+  "train_rows": 230903,
+  "test_rows": 77310,
+  "train_fraud_count": 6120,
+  "test_fraud_count": 2093,
+  "train_fraud_rate_pct": 2.6505,
+  "test_fraud_rate_pct": 2.7073,
   "feature_names": [
     "amount",
     "oldbalanceOrg",
@@ -56,5 +57,5 @@
     "raw_error_orig",
     "raw_error_dest"
   ],
-  "execution_time_sec": 122.92
+  "execution_time_sec": 104.75
 }

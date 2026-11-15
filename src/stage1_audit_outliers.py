@@ -1,20 +1,18 @@
 """
-Stage 1: Data Validity Checks, Target Leakage Audit, and Outlier Analysis.
+Stage 1: Data Validity Checks, Target Leakage Audit, and Outlier Analysis (Apache Spark).
 
 This standalone module executes:
-1. Structural & Data Validity Checks:
-   - Missing/null values, duplicates, negative numeric bounds, and schema validation.
-2. Domain & Target Leakage Audit (via DatasetAdapter):
+1. Structural & Data Validity Checks (Spark distributed single-pass):
+   - Missing/null/NaN values, duplicates, negative numeric bounds, infinite values.
+2. Domain & Target Leakage Audit (via Spark DatasetAdapter):
    - Verifies categorical fraud constraints (0% fraud in PAYMENT, CASH_IN, DEBIT).
    - Evaluates the naive `isFlaggedFraud` rule.
-   - Quantifies "The Ledger Bug" target leakage (destination balances failing to update
-     during synthetic fraud) and the 100% account depletion trigger.
+   - Quantifies "The Ledger Bug" target leakage and the 100% account depletion trigger.
 3. Univariate & Multivariate Outlier Detection:
-   - Computes Interquartile Range (IQR) and Modified Z-Score univariate outliers on
-     numeric columns (`amount`, `oldbalanceOrg`, `oldbalanceDest`).
-   - Runs `IsolationForest` multivariate anomaly detection on a stratified sample of
-     `TRANSFER` and `CASH_OUT` transactions to analyze how statistical outliers overlap
-     with ground-truth `isFraud`.
+   - Computes distributed approximate quantiles (IQR) and Modified Z-Score (MAD)
+     univariate outliers on `amount`, `oldbalanceOrg`, `oldbalanceDest`.
+   - Runs `IsolationForest` multivariate anomaly detection on a bounded Spark-sampled
+     subset of `TRANSFER` and `CASH_OUT` transactions.
 4. Diagnostic Visualizations:
    - Saves publication-quality charts to `reports/figures/` and structured JSON metrics
      to `data/01_audit/audit_summary.json`.
@@ -32,32 +30,54 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
+from pyspark.sql.types import DoubleType, FloatType
 from sklearn.ensemble import IsolationForest
 
 from src.dataset_adapter import get_dataset_adapter, load_config
+from src.spark_utils import get_spark_session
 
 
-def compute_validity_checks(df: pd.DataFrame, numeric_cols: list[str]) -> Dict[str, Any]:
+def compute_validity_checks(df: DataFrame, numeric_cols: list[str]) -> Dict[str, Any]:
     """
-    Verify fundamental data integrity: nulls, exact duplicate rows, infinite values,
-    and negative values in financial amount/balance columns.
+    Verify fundamental data integrity in Spark: nulls/NaNs, exact duplicate rows,
+    infinite values, and negative values in financial amount/balance columns.
     """
-    null_counts = {col: int(df[col].isna().sum()) for col in df.columns}
+    schema_map = {field.name: field.dataType for field in df.schema.fields}
+    agg_exprs = [F.count("*").alias("__total_rows")]
+
+    for col in df.columns:
+        is_float = isinstance(schema_map.get(col), (DoubleType, FloatType))
+        cond = F.col(col).isNull() | F.isnan(F.col(col)) if is_float else F.col(col).isNull()
+        agg_exprs.append(F.sum(F.when(cond, 1).otherwise(0)).alias(f"__null_{col}"))
+
+    present_numeric = [col for col in numeric_cols if col in df.columns]
+    for col in present_numeric:
+        agg_exprs.append(
+            F.sum(F.when(F.col(col) < 0, 1).otherwise(0)).alias(f"__neg_{col}")
+        )
+        agg_exprs.append(
+            F.sum(
+                F.when(
+                    (F.col(col) == float("inf")) | (F.col(col) == float("-inf")), 1
+                ).otherwise(0)
+            ).alias(f"__inf_{col}")
+        )
+
+    row = df.agg(*agg_exprs).collect()[0]
+    total_rows = int(row["__total_rows"] or 0)
+
+    null_counts = {col: int(row[f"__null_{col}"] or 0) for col in df.columns}
+    negative_counts = {col: int(row[f"__neg_{col}"] or 0) for col in present_numeric}
+    inf_counts = {col: int(row[f"__inf_{col}"] or 0) for col in present_numeric}
+
     total_nulls = sum(null_counts.values())
-
-    negative_counts = {}
-    inf_counts = {}
-    for col in numeric_cols:
-        if col in df.columns:
-            vals = df[col].to_numpy()
-            negative_counts[col] = int((vals < 0).sum())
-            inf_counts[col] = int(np.isinf(vals).sum())
-
     total_negatives = sum(negative_counts.values())
     total_infs = sum(inf_counts.values())
 
-    # Check exact duplicate rows across key transaction fields
-    dup_count = int(df.duplicated().sum())
+    # Distributed duplicate detection in Spark
+    dup_count = int(total_rows - df.dropDuplicates().count())
 
     return {
         "is_valid_schema": bool(total_nulls == 0 and total_negatives == 0 and total_infs == 0),
@@ -70,65 +90,92 @@ def compute_validity_checks(df: pd.DataFrame, numeric_cols: list[str]) -> Dict[s
     }
 
 
-def compute_outlier_analysis(df: pd.DataFrame, seed: int = 42) -> Dict[str, Any]:
+def compute_outlier_analysis(df: DataFrame, seed: int = 42) -> Dict[str, Any]:
     """
-    Perform univariate (IQR & Modified Z-score) and multivariate (Isolation Forest)
-    outlier detection on the active fraud-capable domain (TRANSFER & CASH_OUT),
-    quantifying the overlap between extreme statistical outliers and actual fraud.
+    Perform univariate (distributed IQR & Modified Z-score via Spark approxQuantile)
+    and multivariate (Isolation Forest on a bounded Spark sample) outlier detection
+    on the active fraud-capable domain (TRANSFER & CASH_OUT).
     """
-    if "type" in df.columns:
-        work = df.loc[df["type"].isin(["TRANSFER", "CASH_OUT"])].copy()
-    else:
-        work = df.copy()
+    work = df.filter(F.col("type").isin(["TRANSFER", "CASH_OUT"])) if "type" in df.columns else df
 
-    n_rows = len(work)
-    fraud_mask = work["isFraud"].to_numpy() == 1
-    n_fraud = int(fraud_mask.sum())
+    counts_row = work.agg(
+        F.count("*").alias("n_rows"),
+        F.sum(F.when(F.col("isFraud") == 1, 1).otherwise(0)).alias("n_fraud"),
+    ).collect()[0]
+    n_rows = int(counts_row["n_rows"] or 0)
+    n_fraud = int(counts_row["n_fraud"] or 0)
 
     univariate_stats: Dict[str, Any] = {}
     for col in ["amount", "oldbalanceOrg", "oldbalanceDest"]:
         if col not in work.columns:
             continue
-        arr = work[col].to_numpy(dtype=float)
-        q25, q50, q75, q99 = np.percentile(arr, [25, 50, 75, 99])
+
+        col_df = work.select(F.col(col).cast("double").alias(col), "isFraud")
+        q25, q50, q75, q99 = col_df.approxQuantile(col, [0.25, 0.50, 0.75, 0.99], 0.001)
         iqr = q75 - q25
         upper_fence = q75 + 1.5 * iqr
         extreme_fence = q75 + 3.0 * iqr
 
-        is_iqr_outlier = arr > upper_fence
-        is_extreme_outlier = arr > extreme_fence
+        # Modified Z-score using distributed Median Absolute Deviation (MAD)
+        mad = col_df.select(F.abs(F.col(col) - F.lit(q50)).alias("abs_dev")).approxQuantile(
+            "abs_dev", [0.5], 0.001
+        )[0]
+        if mad > 1e-9:
+            denom = 1.4826 * mad
+        else:
+            std_val = col_df.agg(F.stddev(col)).collect()[0][0]
+            denom = float(std_val or 0.0) + 1e-9
 
-        # Modified Z-score using Median Absolute Deviation (MAD)
-        mad = float(np.median(np.abs(arr - q50)))
-        denom = 1.4826 * mad if mad > 1e-9 else (float(np.std(arr)) + 1e-9)
-        mod_z = np.abs(arr - q50) / denom
-        is_modz_outlier = mod_z > 3.5
+        is_iqr_outlier = F.col(col) > F.lit(upper_fence)
+        is_extreme_outlier = F.col(col) > F.lit(extreme_fence)
+        is_modz_outlier = (F.abs(F.col(col) - F.lit(q50)) / F.lit(denom)) > F.lit(3.5)
 
-        fraud_in_iqr = int((is_iqr_outlier & fraud_mask).sum())
+        stats_row = col_df.agg(
+            F.max(col).alias("max_val"),
+            F.sum(F.when(is_iqr_outlier, 1).otherwise(0)).alias("iqr_cnt"),
+            F.sum(F.when(is_extreme_outlier, 1).otherwise(0)).alias("ext_cnt"),
+            F.sum(F.when(is_modz_outlier, 1).otherwise(0)).alias("modz_cnt"),
+            F.sum(F.when(is_iqr_outlier & (F.col("isFraud") == 1), 1).otherwise(0)).alias(
+                "fraud_iqr_cnt"
+            ),
+        ).collect()[0]
+
+        iqr_cnt = int(stats_row["iqr_cnt"] or 0)
+        fraud_in_iqr = int(stats_row["fraud_iqr_cnt"] or 0)
+
         univariate_stats[col] = {
             "median": round(float(q50), 2),
             "q25": round(float(q25), 2),
             "q75": round(float(q75), 2),
             "q99": round(float(q99), 2),
-            "max": round(float(arr.max()), 2),
+            "max": round(float(stats_row["max_val"] or 0.0), 2),
             "iqr": round(float(iqr), 2),
             "iqr_upper_fence": round(float(upper_fence), 2),
-            "iqr_outlier_count": int(is_iqr_outlier.sum()),
-            "iqr_outlier_pct": round(100.0 * float(is_iqr_outlier.mean()), 2),
-            "extreme_3x_iqr_outlier_count": int(is_extreme_outlier.sum()),
-            "mod_zscore_gt_3_5_count": int(is_modz_outlier.sum()),
+            "iqr_outlier_count": iqr_cnt,
+            "iqr_outlier_pct": round(100.0 * iqr_cnt / max(n_rows, 1), 2),
+            "extreme_3x_iqr_outlier_count": int(stats_row["ext_cnt"] or 0),
+            "mod_zscore_gt_3_5_count": int(stats_row["modz_cnt"] or 0),
             "fraud_captured_in_iqr_outliers": fraud_in_iqr,
-            "pct_of_all_fraud_is_iqr_outlier": round(
-                100.0 * fraud_in_iqr / max(n_fraud, 1), 2
-            ),
+            "pct_of_all_fraud_is_iqr_outlier": round(100.0 * fraud_in_iqr / max(n_fraud, 1), 2),
         }
 
-    # Multivariate Outlier Detection via Isolation Forest
-    # Sample all fraud cases + 100,000 legitimate TRANSFER/CASH_OUT rows for fast fitting
-    pos_df = work.loc[work["isFraud"] == 1]
-    neg_df = work.loc[work["isFraud"] == 0]
-    neg_sample = neg_df.sample(n=min(100_000, len(neg_df)), random_state=seed)
-    iso_df = pd.concat([pos_df, neg_sample], axis=0).reset_index(drop=True)
+    # Multivariate Outlier Detection via Isolation Forest on a bounded Spark sample
+    iso_cols = ["amount", "oldbalanceOrg", "oldbalanceDest", "isFraud"]
+    pos_spark = work.filter(F.col("isFraud") == 1).select(*iso_cols)
+    if n_fraud > 100_000:
+        pos_spark = pos_spark.sample(False, min(1.0, 105_000.0 / n_fraud), seed).limit(100_000)
+
+    n_legit = max(n_rows - n_fraud, 1)
+    neg_target = min(100_000, n_legit)
+    neg_frac = min(1.0, (neg_target * 1.05) / float(n_legit))
+    neg_spark = (
+        work.filter(F.col("isFraud") == 0)
+        .select(*iso_cols)
+        .sample(withReplacement=False, fraction=neg_frac, seed=seed)
+        .limit(neg_target)
+    )
+
+    iso_df = pos_spark.unionByName(neg_spark).toPandas()
 
     iso_features = ["amount", "oldbalanceOrg", "oldbalanceDest"]
     X_iso = np.log1p(np.maximum(0.0, iso_df[iso_features].to_numpy(dtype=float)))
@@ -161,25 +208,25 @@ def compute_outlier_analysis(df: pd.DataFrame, seed: int = 42) -> Dict[str, Any]
 
     return {
         "analyzed_subset": "TRANSFER and CASH_OUT",
-        "analyzed_rows": int(n_rows),
+        "analyzed_rows": n_rows,
         "univariate_outliers": univariate_stats,
         "multivariate_isolation_forest": multivariate_stats,
     }
 
 
 def generate_stage1_plots(
-    df: pd.DataFrame,
+    df: DataFrame,
     audit_results: Dict[str, Any],
     figures_dir: Path,
+    seed: int = 42,
 ) -> Dict[str, str]:
     """
-    Generate diagnostic plots illustrating:
-    1. Transaction volume & fraud concentration by type + The Ledger Bug leakage proof.
-    2. Outlier distributions (log-amount & account depletion ratio across Legitimate vs Fraud).
-    3. Micro-seasonality (Hourly fraud rate vs overall transaction volume).
+    Generate diagnostic plots using Spark-aggregated statistics and bounded samples.
     """
     figures_dir.mkdir(parents=True, exist_ok=True)
-    plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
+    plt.style.use(
+        "seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default"
+    )
 
     # -------------------------------------------------------------------------
     # Figure 1: Categorical Constraint & Target Leakage (The Ledger Bug)
@@ -192,7 +239,9 @@ def generate_stage1_plots(
     colors = ["#d95f02" if c > 0 else "#999999" for c in fraud_counts]
 
     bars = axes[0].bar(types, fraud_counts, color=colors, edgecolor="#222222", alpha=0.9)
-    axes[0].set_title("PaySim Categorical Constraint: Fraud Count by Type", fontsize=12, fontweight="bold")
+    axes[0].set_title(
+        "PaySim Categorical Constraint: Fraud Count by Type", fontsize=12, fontweight="bold"
+    )
     axes[0].set_ylabel("Number of Fraudulent Transactions")
     axes[0].set_xlabel("Transaction Type")
     for bar, cnt in zip(bars, fraud_counts):
@@ -205,9 +254,8 @@ def generate_stage1_plots(
             fontsize=9.5,
             fontweight="bold",
         )
-    axes[0].set_ylim(0, max(fraud_counts) * 1.18)
+    axes[0].set_ylim(0, max(fraud_counts) * 1.18 if fraud_counts else 1)
 
-    # Panel B: Ledger Bug & Account Depletion Trigger Comparison (Legit vs Fraud)
     lb = audit_results["domain_audit"]["ledger_bug_and_leakage_audit"]
     categories = [
         "Dest Balance Unchanged\n(newDest == oldDest)",
@@ -227,9 +275,15 @@ def generate_stage1_plots(
 
     x_idx = np.arange(len(categories))
     width = 0.36
-    b1 = axes[1].bar(x_idx - width / 2, legit_pcts, width, label="Legitimate (TRANSFER/CASH_OUT)", color="#377eb8")
-    b2 = axes[1].bar(x_idx + width / 2, fraud_pcts, width, label="Fraudulent (isFraud = 1)", color="#e41a1c")
-    axes[1].set_title("PaySim Simulation Artifacts & Ledger Bug Prevalence", fontsize=12, fontweight="bold")
+    b1 = axes[1].bar(
+        x_idx - width / 2, legit_pcts, width, label="Legitimate (TRANSFER/CASH_OUT)", color="#377eb8"
+    )
+    b2 = axes[1].bar(
+        x_idx + width / 2, fraud_pcts, width, label="Fraudulent (isFraud = 1)", color="#e41a1c"
+    )
+    axes[1].set_title(
+        "PaySim Simulation Artifacts & Ledger Bug Prevalence", fontsize=12, fontweight="bold"
+    )
     axes[1].set_ylabel("Prevalence within Class (%)")
     axes[1].set_xticks(x_idx)
     axes[1].set_xticklabels(categories, fontsize=9)
@@ -255,38 +309,75 @@ def generate_stage1_plots(
     # -------------------------------------------------------------------------
     # Figure 2: Outliers & Micro-Seasonality (Hourly Fraud Pattern)
     # -------------------------------------------------------------------------
-    tc_df = df.loc[df["type"].isin(["TRANSFER", "CASH_OUT"])]
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.0), dpi=140)
+    tc_df = df.filter(F.col("type").isin(["TRANSFER", "CASH_OUT"]))
+    tc_rows = max(audit_results["outlier_analysis"]["analyzed_rows"], 1)
+    legit_frac = min(1.0, 105_000.0 / float(tc_rows))
 
-    # Panel A: Log10(Amount + 1) distribution for Legit vs Fraud with IQR outlier threshold
-    legit_amt = np.log10(tc_df.loc[tc_df["isFraud"] == 0, "amount"].sample(n=min(100_000, len(tc_df)), random_state=42) + 1.0)
-    fraud_amt = np.log10(tc_df.loc[tc_df["isFraud"] == 1, "amount"] + 1.0)
+    legit_amt_pd = (
+        tc_df.filter(F.col("isFraud") == 0)
+        .select("amount")
+        .sample(withReplacement=False, fraction=legit_frac, seed=seed)
+        .limit(100_000)
+        .toPandas()
+    )
+    fraud_amt_pd = tc_df.filter(F.col("isFraud") == 1).select("amount").limit(100_000).toPandas()
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.0), dpi=140)
+    legit_amt = np.log10(legit_amt_pd["amount"].to_numpy(dtype=float) + 1.0)
+    fraud_amt = np.log10(fraud_amt_pd["amount"].to_numpy(dtype=float) + 1.0)
     iqr_fence = audit_results["outlier_analysis"]["univariate_outliers"]["amount"]["iqr_upper_fence"]
 
     axes[0].hist(legit_amt, bins=50, density=True, alpha=0.6, color="#377eb8", label="Legitimate")
     axes[0].hist(fraud_amt, bins=50, density=True, alpha=0.6, color="#e41a1c", label="Fraud (isFraud=1)")
-    axes[0].axvline(np.log10(iqr_fence + 1.0), color="#111111", linestyle="--", linewidth=1.8, label=f"IQR Fence ({iqr_fence:,.0f})")
-    axes[0].set_title("Transaction Amount Distribution & IQR Outlier Boundary", fontsize=11.5, fontweight="bold")
+    axes[0].axvline(
+        np.log10(iqr_fence + 1.0),
+        color="#111111",
+        linestyle="--",
+        linewidth=1.8,
+        label=f"IQR Fence ({iqr_fence:,.0f})",
+    )
+    axes[0].set_title(
+        "Transaction Amount Distribution & IQR Outlier Boundary", fontsize=11.5, fontweight="bold"
+    )
     axes[0].set_xlabel("log10(Amount + 1)")
     axes[0].set_ylabel("Density")
     axes[0].legend(frameon=True)
 
-    # Panel B: Micro-seasonality (Hour of Day fraud rate vs transaction volume)
-    hours = tc_df["step"] % 24
+    # Panel B: Micro-seasonality aggregated in Spark (only 24 rows collected)
     hourly_stats = (
-        pd.DataFrame({"hour": hours, "isFraud": tc_df["isFraud"]})
-        .groupby("hour")
-        .agg(total=("isFraud", "count"), fraud=("isFraud", "sum"))
-        .reset_index()
+        tc_df.groupBy((F.col("step") % F.lit(24)).alias("hour"))
+        .agg(
+            F.count("*").alias("total"),
+            F.sum(F.col("isFraud").cast("long")).alias("fraud"),
+        )
+        .orderBy("hour")
+        .toPandas()
     )
-    hourly_stats["fraud_rate_pct"] = 100.0 * hourly_stats["fraud"] / hourly_stats["total"].clip(lower=1)
+    hourly_stats["fraud_rate_pct"] = (
+        100.0 * hourly_stats["fraud"] / hourly_stats["total"].clip(lower=1)
+    )
 
     ax2 = axes[1]
     ax2_twin = ax2.twinx()
-    ax2.bar(hourly_stats["hour"], hourly_stats["total"] / 1000.0, color="#b3cde3", alpha=0.7, label="Tx Volume (Thousands)")
-    ax2_twin.plot(hourly_stats["hour"], hourly_stats["fraud_rate_pct"], color="#e41a1c", marker="o", linewidth=2.2, label="Fraud Rate (%)")
+    ax2.bar(
+        hourly_stats["hour"],
+        hourly_stats["total"] / 1000.0,
+        color="#b3cde3",
+        alpha=0.7,
+        label="Tx Volume (Thousands)",
+    )
+    ax2_twin.plot(
+        hourly_stats["hour"],
+        hourly_stats["fraud_rate_pct"],
+        color="#e41a1c",
+        marker="o",
+        linewidth=2.2,
+        label="Fraud Rate (%)",
+    )
 
-    ax2.set_title("Micro-Seasonality: Hourly Volume vs. Nocturnal Fraud Spike", fontsize=11.5, fontweight="bold")
+    ax2.set_title(
+        "Micro-Seasonality: Hourly Volume vs. Nocturnal Fraud Spike", fontsize=11.5, fontweight="bold"
+    )
     ax2.set_xlabel("Hour of Day (step mod 24)")
     ax2.set_ylabel("Transaction Volume (Thousands)", color="#2b5c8f")
     ax2_twin.set_ylabel("Fraud Rate (%)", color="#e41a1c")
@@ -305,37 +396,47 @@ def generate_stage1_plots(
 
 
 def run_stage1(config_path: str | Path = "configs/paysim_config.yaml") -> Dict[str, Any]:
-    """Execute Stage 1 end-to-end and persist audit artifacts."""
+    """Execute Stage 1 end-to-end using Apache Spark and persist audit artifacts."""
     t0 = time.time()
     config = load_config(config_path)
     adapter = get_dataset_adapter(config)
+    spark = get_spark_session(config)
 
-    print("[Stage 1] Loading raw dataset via adapter...")
-    df = adapter.load_raw_data()
-    print(f"[Stage 1] Loaded {len(df):,} rows and {len(df.columns)} columns.")
+    try:
+        print("[Stage 1] Loading raw dataset via Spark adapter...")
+        df = adapter.load_raw_data(spark).cache()
+        row_count = df.count()
+        print(f"[Stage 1] Loaded {row_count:,} rows and {len(df.columns)} columns in Spark.")
 
-    print("[Stage 1] Running data validity checks...")
-    validity = compute_validity_checks(df, config["schema"]["numeric_cols"])
+        print("[Stage 1] Running distributed data validity checks...")
+        validity = compute_validity_checks(df, config["schema"]["numeric_cols"])
 
-    print("[Stage 1] Running domain & target leakage (Ledger Bug) audit...")
-    domain_audit = adapter.compute_domain_audit_metrics(df)
+        print("[Stage 1] Running distributed domain & target leakage (Ledger Bug) audit...")
+        domain_audit = adapter.compute_domain_audit_metrics(df)
 
-    print("[Stage 1] Running univariate (IQR/MAD) & multivariate (IsolationForest) outlier analysis...")
-    seed = config.get("remediation", {}).get("random_seed", 42)
-    outlier_analysis = compute_outlier_analysis(df, seed=seed)
+        print(
+            "[Stage 1] Running distributed univariate (IQR/MAD) & multivariate (IsolationForest) outlier analysis..."
+        )
+        seed = int(config.get("remediation", {}).get("random_seed", 42))
+        outlier_analysis = compute_outlier_analysis(df, seed=seed)
 
-    audit_results: Dict[str, Any] = {
-        "dataset_name": config["dataset_name"],
-        "validity_checks": validity,
-        "domain_audit": domain_audit,
-        "outlier_analysis": outlier_analysis,
-    }
+        audit_results: Dict[str, Any] = {
+            "dataset_name": config["dataset_name"],
+            "engine": f"Apache Spark {spark.version}",
+            "validity_checks": validity,
+            "domain_audit": domain_audit,
+            "outlier_analysis": outlier_analysis,
+        }
 
-    print("[Stage 1] Generating diagnostic figures...")
-    figures_dir = Path(config["paths"]["figures_dir"])
-    plot_paths = generate_stage1_plots(df, audit_results, figures_dir)
-    audit_results["Generated_Plots"] = plot_paths
-    audit_results["execution_time_sec"] = round(time.time() - t0, 2)
+        print("[Stage 1] Generating diagnostic figures...")
+        figures_dir = Path(config["paths"]["figures_dir"])
+        plot_paths = generate_stage1_plots(df, audit_results, figures_dir, seed=seed)
+        audit_results["Generated_Plots"] = plot_paths
+        audit_results["execution_time_sec"] = round(time.time() - t0, 2)
+
+        df.unpersist()
+    finally:
+        spark.stop()
 
     out_path = Path(config["paths"]["audit_dir"]) / "audit_summary.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)

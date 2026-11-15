@@ -1,5 +1,6 @@
 {
   "dataset_name": "paysim",
+  "engine": "Apache Spark 4.0.5",
   "validity_checks": {
     "is_valid_schema": true,
     "total_null_values": 0,
@@ -35,13 +36,6 @@
     "step_min": 1,
     "step_max": 743,
     "type_breakdown": {
-      "CASH_IN": {
-        "total_transactions": 1399284,
-        "share_of_dataset_pct": 21.992,
-        "fraud_transactions": 0,
-        "fraud_rate_pct": 0.0,
-        "mean_amount": 168920.24
-      },
       "CASH_OUT": {
         "total_transactions": 2237500,
         "share_of_dataset_pct": 35.166,
@@ -55,6 +49,13 @@
         "fraud_transactions": 0,
         "fraud_rate_pct": 0.0,
         "mean_amount": 5483.67
+      },
+      "CASH_IN": {
+        "total_transactions": 1399284,
+        "share_of_dataset_pct": 21.992,
+        "fraud_transactions": 0,
+        "fraud_rate_pct": 0.0,
+        "mean_amount": 168920.24
       },
       "PAYMENT": {
         "total_transactions": 2151495,
@@ -103,47 +104,47 @@
     "analyzed_rows": 2770409,
     "univariate_outliers": {
       "amount": {
-        "median": 171260.93,
-        "q25": 82973.54,
-        "q75": 306791.18,
-        "q99": 2650035.52,
+        "median": 171051.78,
+        "q25": 82879.46,
+        "q75": 306573.69,
+        "q99": 2589979.97,
         "max": 92445516.64,
-        "iqr": 223817.64,
-        "iqr_upper_fence": 642517.64,
-        "iqr_outlier_count": 223100,
-        "iqr_outlier_pct": 8.05,
-        "extreme_3x_iqr_outlier_count": 134343,
-        "mod_zscore_gt_3_5_count": 199587,
-        "fraud_captured_in_iqr_outliers": 3443,
-        "pct_of_all_fraud_is_iqr_outlier": 41.92
+        "iqr": 223694.23,
+        "iqr_upper_fence": 642115.03,
+        "iqr_outlier_count": 223298,
+        "iqr_outlier_pct": 8.06,
+        "extreme_3x_iqr_outlier_count": 134435,
+        "mod_zscore_gt_3_5_count": 199873,
+        "fraud_captured_in_iqr_outliers": 3445,
+        "pct_of_all_fraud_is_iqr_outlier": 41.95
       },
       "oldbalanceOrg": {
-        "median": 303.96,
+        "median": 298.0,
         "q25": 0.0,
-        "q75": 30997.0,
-        "q99": 594577.22,
+        "q75": 30963.0,
+        "q99": 583249.29,
         "max": 59585040.37,
-        "iqr": 30997.0,
-        "iqr_upper_fence": 77492.5,
-        "iqr_outlier_count": 395573,
+        "iqr": 30963.0,
+        "iqr_upper_fence": 77407.5,
+        "iqr_outlier_count": 395742,
         "iqr_outlier_pct": 14.28,
-        "extreme_3x_iqr_outlier_count": 258639,
-        "mod_zscore_gt_3_5_count": 1274833,
+        "extreme_3x_iqr_outlier_count": 258887,
+        "mod_zscore_gt_3_5_count": 1275643,
         "fraud_captured_in_iqr_outliers": 6753,
         "pct_of_all_fraud_is_iqr_outlier": 82.22
       },
       "oldbalanceDest": {
-        "median": 555709.97,
-        "q25": 128073.45,
-        "q75": 1735900.15,
-        "q99": 15231081.91,
+        "median": 554981.33,
+        "q25": 127358.05,
+        "q75": 1734032.32,
+        "q99": 14819549.42,
         "max": 356015889.35,
-        "iqr": 1607826.7,
-        "iqr_upper_fence": 4147640.2,
-        "iqr_outlier_count": 286491,
-        "iqr_outlier_pct": 10.34,
-        "extreme_3x_iqr_outlier_count": 153140,
-        "mod_zscore_gt_3_5_count": 364618,
+        "iqr": 1606674.27,
+        "iqr_upper_fence": 4144043.73,
+        "iqr_outlier_count": 286808,
+        "iqr_outlier_pct": 10.35,
+        "extreme_3x_iqr_outlier_count": 153323,
+        "mod_zscore_gt_3_5_count": 365116,
         "fraud_captured_in_iqr_outliers": 254,
         "pct_of_all_fraud_is_iqr_outlier": 3.09
       }
@@ -152,15 +153,15 @@
       "evaluated_sample_size": 108213,
       "contamination_rate": 0.05,
       "total_outliers_flagged": 5411,
-      "fraud_flagged_as_multivariate_outlier": 2392,
-      "pct_of_fraud_flagged_as_multivariate_outlier": 29.12,
-      "mean_anomaly_score_fraud": 0.5532,
-      "mean_anomaly_score_legit": 0.4635
+      "fraud_flagged_as_multivariate_outlier": 2153,
+      "pct_of_fraud_flagged_as_multivariate_outlier": 26.21,
+      "mean_anomaly_score_fraud": 0.5493,
+      "mean_anomaly_score_legit": 0.4602
     }
   },
   "Generated_Plots": {
     "leakage_and_types_plot": "reports\\figures\\stage1_leakage_and_types.png",
     "outliers_and_seasonality_plot": "reports\\figures\\stage1_outliers_and_seasonality.png"
   },
-  "execution_time_sec": 76.95
+  "execution_time_sec": 76.82
 }
